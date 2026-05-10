@@ -1,0 +1,15 @@
+{
+  "name": "pi-north-star",
+  "type": "module",
+  "scripts": {
+    "test": "bun test",
+    "test:watch": "bun test --watch"
+  },
+  "dependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "typebox": "^1.1.38"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.0"
+  }
+}
