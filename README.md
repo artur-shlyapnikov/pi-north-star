@@ -76,7 +76,7 @@ Pi North Star tracks these live phases in the status line:
 
 | Phase | When it appears |
 | --- | --- |
-| `planning` | The turn only reads files or has no non-goal tool calls. |
+| `planning` | The turn only uses read-only tools or has no non-goal tool calls. |
 | `executing` | The turn uses a write tool or another non-read-only tool. |
 | `verifying` | A tool name contains `test`, `verify`, `build`, `lint`, or `typecheck`. |
 | `blocked` | Every non-goal tool call fails. |
@@ -115,8 +115,8 @@ branch.
 Other limits are part of the current implementation:
 
 - Completion uses Pi runtime support for `terminate: true`.
-- Strict tool allowlists must include `get_goal`, `update_goal`, and
-  `clear_goal`.
+- When no goal exists, the extension hides `get_goal`, `update_goal`, and
+  `clear_goal`. It shows them again when you create a goal.
 - If usage crosses the budget between turns, the budget-limit prompt waits
   until the next active turn.
 
