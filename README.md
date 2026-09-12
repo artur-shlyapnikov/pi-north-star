@@ -105,8 +105,8 @@ advisory. The extension does not read, validate, or enforce its contents.
 
 The extension appends `goal.snapshot` entries to the current Pi session
 branch. A new snapshot contains a revision number, objective, status, usage,
-timestamps, and continuation sequence. The verifier policy is stored in a
-separate `goal.verifier` entry.
+timestamps, and continuation sequence. The verifier policy is read from and
+written to the repository's `config.json`.
 
 All mutations inside one process use an async mutex. The extension does not
 lock across processes, so two Pi sessions can race when they write the same
