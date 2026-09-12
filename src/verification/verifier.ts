@@ -1,29 +1,61 @@
 import { READ_TOOLS, VERIFY_HINTS, WRITE_TOOLS, type EvidenceItem, type EvidenceKind, type VerificationResult, type VerifierPolicy } from "../goal/goal-types";
+export const GOAL_TOOLS = new Set(["get_goal", "update_goal", "clear_goal"]);
+const OBSERVE_TOOLS = new Set(["web_search", "code_search", "fetch_content", "get_search_content"]);
+export type ToolClass = "goal" | "read" | "write" | "verify" | "command" | "observe" | "other";
+export function classifyTool(toolName: string): ToolClass {
+    if (GOAL_TOOLS.has(toolName))
+        return "goal";
+    if (READ_TOOLS.has(toolName))
+        return "read";
+    if (WRITE_TOOLS.has(toolName))
+        return "write";
+    if (VERIFY_HINTS.some((hint) => toolName.toLowerCase().includes(hint)))
+        return "verify";
+    if (toolName === "bash" || toolName === "shell")
+        return "command";
+    if (OBSERVE_TOOLS.has(toolName))
+        return "observe";
+    return "other";
+}
+export type GoalLivePhase = "planning" | "executing" | "verifying" | "blocked";
+export function deriveLivePhase(toolResults: {
+    toolName: string;
+    isError?: boolean;
+}[]): GoalLivePhase {
+    const tools = toolResults.filter((r) => !r.isError && classifyTool(r.toolName) !== "goal").map((r) => r.toolName);
+    if (tools.length === 0 && toolResults.some((r) => r.isError))
+        return "blocked";
+    if (tools.some((n) => classifyTool(n) === "verify"))
+        return "verifying";
+    if (tools.some((n) => classifyTool(n) === "write"))
+        return "executing";
+    if (tools.length > 0 && tools.every((n) => classifyTool(n) === "read" || classifyTool(n) === "observe"))
+        return "planning";
+    if (tools.length > 0)
+        return "executing";
+    return "planning";
+}
 function classifyToolResult(toolName: string, isError: boolean): {
     kind: EvidenceKind;
     summary: string;
 } | null {
     if (isError)
         return null;
-    if (toolName === "get_goal") {
-        return { kind: "goal_check", summary: "checked active goal via get_goal" };
+    switch (classifyTool(toolName)) {
+        case "goal":
+            return toolName === "get_goal" ? { kind: "goal_check", summary: "checked active goal via get_goal" } : null;
+        case "read":
+            return { kind: "file_inspection", summary: `inspected files via ${toolName}` };
+        case "write":
+            return { kind: "file_change", summary: `modified files via ${toolName}` };
+        case "verify":
+            return { kind: "test_run", summary: `ran verification: ${toolName}` };
+        case "command":
+            return { kind: "command_output", summary: `executed command via bash` };
+        case "observe":
+        case "other":
+            return { kind: "verification_tool", summary: `used tool: ${toolName}` };
     }
-    if (toolName === "update_goal" || toolName === "clear_goal") {
-        return null;
-    }
-    if (READ_TOOLS.has(toolName)) {
-        return { kind: "file_inspection", summary: `inspected files via ${toolName}` };
-    }
-    if (WRITE_TOOLS.has(toolName)) {
-        return { kind: "file_change", summary: `modified files via ${toolName}` };
-    }
-    if (VERIFY_HINTS.some((hint) => toolName.toLowerCase().includes(hint))) {
-        return { kind: "test_run", summary: `ran verification: ${toolName}` };
-    }
-    if (toolName === "bash" || toolName === "shell") {
-        return { kind: "command_output", summary: `executed command via bash` };
-    }
-    return { kind: "verification_tool", summary: `used tool: ${toolName}` };
 }
 export function collectEvidenceFromToolResults(toolResults: {
     toolName: string;

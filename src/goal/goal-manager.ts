@@ -1,19 +1,9 @@
 import type { SessionEntry, TurnEndEvent } from "@earendil-works/pi-coding-agent";
 import { accountTokenDelta } from "../runtime/accounting";
 import { loadGoalFromEntries } from "../persistence/goal-persistence";
-import { READ_TOOLS, VERIFY_HINTS, WRITE_TOOLS, type AccountingMode, type EvidenceItem, type GoalConfig, type GoalPauseReason, type GoalSnapshot, type TokenUsageSnapshot, type VerifierPolicy, } from "./goal-types";
-import { collectEvidenceFromToolResults } from "../verification/verifier";
-type GoalLivePhase = "planning" | "executing" | "verifying" | "blocked";
-export const GOAL_TOOLS = new Set(["get_goal", "update_goal", "clear_goal"]);
-const READ_ONLY_TOOLS = new Set([
-    ...READ_TOOLS,
-    "get_goal",
-    "web_search",
-    "code_search",
-    "fetch_content",
-    "get_search_content",
-]);
-const EXECUTION_TOOLS = WRITE_TOOLS;
+import { type AccountingMode, type EvidenceItem, type GoalConfig, type GoalPauseReason, type GoalSnapshot, type TokenUsageSnapshot, type VerifierPolicy, } from "./goal-types";
+import { collectEvidenceFromToolResults, deriveLivePhase, type GoalLivePhase } from "../verification/verifier";
+export { GOAL_TOOLS } from "../verification/verifier";
 export class GoalManager {
     goal: GoalSnapshot | null = null;
     planFileEnabled = true;
@@ -252,26 +242,6 @@ export class GoalManager {
     updateLiveFromTurn(event: TurnEndEvent): void {
         if (!this.goal || this.goal.status !== "active")
             return;
-        const results = event.toolResults ?? [];
-        const successes = results.filter((r) => !r.isError);
-        const tools = successes.filter((r) => !GOAL_TOOLS.has(r.toolName)).map((r) => r.toolName);
-        if (tools.length === 0 && results.some((r) => r.isError)) {
-            this.livePhase = "blocked";
-        }
-        else if (tools.some((n) => VERIFY_HINTS.some((h) => n.toLowerCase().includes(h)))) {
-            this.livePhase = "verifying";
-        }
-        else if (tools.some((n) => EXECUTION_TOOLS.has(n))) {
-            this.livePhase = "executing";
-        }
-        else if (tools.length > 0 && tools.every((n) => READ_ONLY_TOOLS.has(n))) {
-            this.livePhase = "planning";
-        }
-        else if (tools.length > 0) {
-            this.livePhase = "executing";
-        }
-        else {
-            this.livePhase = "planning";
-        }
+        this.livePhase = deriveLivePhase(event.toolResults ?? []);
     }
 }
